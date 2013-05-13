@@ -1,0 +1,6 @@
+Order deny,allow
+#AuthName "### Please provide your TWiki credentials. ###"
+#AuthType Basic
+#AuthUserFile /path/to/shared/htpasswd
+#Require valid-user
+DirectoryIndex gn-view.perl
