@@ -8,6 +8,7 @@ use File::Basename qw(basename dirname);
 use Encode qw(encode decode encode_utf8 decode_utf8);
 use HTTP::Status;
 use File::Temp;
+use JSON;
 
 use utf8;
 use strict;
@@ -56,6 +57,11 @@ sub ensure_edge {
   $edges{"$from $to"} = "$from $to";
   $gv->add_edge($from,$to,%opts);
   return;
+}
+
+sub synset_json {
+  my $syn = shift;
+  return {synset=>$syn, orth=>[map {s/_/ /g; $_} @{$gn->lex2orth($gn->syn2lex($syn))}]};
 }
 
 ## $tmpdata = gvdump($gv,$fmt)
@@ -159,6 +165,7 @@ my %fmt2type = ('png'=>'image/png',
 		'cmapx'=>'text/plain',
 		'imap'=>'text/html',
 		'svg'=>'image/svg+xml',
+		'json'=>'application/json',
 	       );
 eval {
   die "$prog: you must specify either a query term (q=TERM) or a synset (s=SYNSET)!"
@@ -167,6 +174,44 @@ eval {
   my $infile = dirname($0)."/GermaNet/gn.db";
   $gn = GermaNet::Flat->load($infile)
     or die("$prog: failed to load '$infile': $!");
+
+  ##-- output format
+  my $fmt = $vars->{f};
+  $fmt    = $fmtxlate{$fmt} if (exists($fmtxlate{$fmt}));
+
+  ##-- basic properties
+  my $syns   = $vars->{s} ? [split(' ',$vars->{s})] : $gn->get_synsets([split(' ',$vars->{q})]);
+  my $qtitle = $vars->{s} ? ('{'.join(', ', @{$gn->auniq($gn->synset_terms($syns))}).'}') : $vars->{q};
+  #print STDERR "syns = {", join(' ',@{$syns||[]}), "}\n";
+  die("$prog: no synset(s) found for query \`$qtitle'") if (!$syns || !@$syns);
+
+  if ($fmt eq 'json') {
+    ##-- json format: just dump relations
+    my $jdata = [];
+    my ($jsyn);
+
+    foreach my $syn (@$syns) {
+      push(@$jdata, $jsyn=synset_json($syn));
+      $jsyn->{hyperonyms}=[];
+      $jsyn->{hyponyms}=[];
+
+      foreach my $sup (@{$gn->hyperonyms($syn)}) {
+	push(@{$jsyn->{hyperonyms}}, synset_json($sup));
+      }
+      foreach my $sub (@{$gn->hyponyms($syn)}) {
+	push(@{$jsyn->{hyponyms}}, synset_json($sub));
+      }
+    }
+
+    binmode *STDOUT, ':raw';
+    print
+      (header(-type=>($fmt2type{json})),
+       to_json($jdata, {utf8=>1, pretty=>1, canonical=>1}),
+      );
+
+    exit 0;
+  }
+
 
   ##-- graphviz object
   $gv = GraphViz->new(
@@ -177,11 +222,6 @@ eval {
 		      node=>{shape=>'rectangle',fontname=>'arial',fontsize=>12,style=>'filled',fillcolor=>'white'},
 		      edge=>{dir=>'back'},
 		     );
-
-  my $syns   = $vars->{s} ? [split(' ',$vars->{s})] : $gn->get_synsets([split(' ',$vars->{q})]);
-  my $qtitle = $vars->{s} ? ('{'.join(', ', @{$gn->auniq($gn->synset_terms($syns))}).'}') : $vars->{q};
-  #print STDERR "syns = {", join(' ',@{$syns||[]}), "}\n";
-  die("$prog: no synset(s) found for query \`$qtitle'") if (!$syns || !@$syns);
 
   foreach my $syn (@$syns) {
     ensure_node($syn, fillcolor=>'yellow',fontname=>'arial bold',shape=>'circle');
@@ -201,8 +241,6 @@ eval {
   #print $gv->as_canon; exit 0;
 
   ##-- get content
-  my $fmt = $vars->{f};
-  $fmt    = $fmtxlate{$fmt} if (exists($fmtxlate{$fmt}));
   my ($fmtsub);
   if ($fmt eq 'html') {
     ##-- content: html
