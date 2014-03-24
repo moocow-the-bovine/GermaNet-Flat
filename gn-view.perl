@@ -124,7 +124,7 @@ if (param()) {
 $vars->{q} //= (grep {$_} @$vars{qw(lemma l term t word w)})[0];
 $vars->{s} //= (grep {$_} @$vars{qw(synset syn s)})[0];
 $vars->{f} //= (grep {$_} @$vars{qw(format fmt f mode m)})[0];
-$vars->{case} //= (grep {$_} @$vars{qw(case cs)})[0];
+$vars->{case} //= (grep {$_} @$vars{qw(case_sensitive sensitive sens case cs)})[0];
 showq('init', $vars->{q}//'');
 
 charset($charset); ##-- initialize charset AFTER calling Vars(), otherwise fallback utf8::upgrade() won't work
@@ -195,7 +195,8 @@ eval {
     $qtitle   = $vars->{q};
   }
   #print STDERR "syns = {", join(' ',@{$syns||[]}), "}\n";
-  die("$prog: no synset(s) found for query \`$qtitle'") if (!$syns || !@$syns);
+  #die("$prog: no synset(s) found for query \`$qtitle'") if (!$syns || !@$syns);
+  $syns //= [];
 
   ##-- header keys
   my %versionHeader = ('-X-germanet-version'=>($gn->dbversion()||'unknown'));
@@ -272,8 +273,12 @@ eval {
       (header(-type=>'text/html',-charset=>$charset,%versionHeader),
        start_html("GermaNet Graph: $qtitle"),
        h1("GermaNet Graph: $qtitle"),
-       "<img src=\"${prog}?fmt=${imgfmt}&s=".join('+',@{$syns||[]})."\" usemap=\"#gn\" />\n",
-       $cmapx,
+       ($syns && @$syns
+	? ("<img src=\"${prog}?fmt=${imgfmt}&s=".join('+',@{$syns||[]})."\" usemap=\"#gn\" />\n",
+	   $cmapx,
+	  )
+	: ("no synset(s) found!")
+       ),
        end_html,
       );
   }
