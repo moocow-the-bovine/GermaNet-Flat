@@ -4,13 +4,14 @@ package GermaNet::Flat;
 use XML::Parser;
 use IO::File;
 use Fcntl;
+use File::Basename qw(basename dirname);
 use Carp;
 use strict;
 
 ##==============================================================================
 ## Constants
 
-our $VERSION = 0.01;
+our $VERSION = 0.02;
 
 ##-- constants: verbosity levels
 our $vl_silent   = 0;
@@ -130,6 +131,11 @@ BEGIN {
   *hyponyms   = relationWrapper('has_hyponym');
 }
 
+## $dbversion = $gn->dbversion()
+sub dbversion {
+  return $_[0]->relation('dbversion')->[0];
+}
+
 ##----------------------------------------------------------------------
 ## API: compat
 
@@ -163,6 +169,29 @@ sub load {
 
 ##==============================================================================
 ## Input: XML
+
+## $gn = CLASS_OR_OBJECT->loadXmlDir($directoryx)
+##  + loaded data appended to existing relations, no implicit clear()
+sub loadXmlDir {
+  my ($gn,$dir) = @_;
+  $gn = $gn->new() if (!ref($gn));
+
+  ##-- try to load db version
+  my $dbversion = "unknown";
+  if (-r "$dir/VERSION") {
+    open(my $fh,"<$dir/VERSION")
+      or confess(__PACKAGE__ . "::loadXmlDir(): could not open $dir/VERSION: $!");
+    $dbversion = <$fh>;
+    close $fh;
+  } else if (basename($dir) =~ /[\.\-](\d[\d\.\-]*$)/) {
+    $dbversion = $1;
+  }
+  $gn->{rel}{dbversion} = $dbversion;
+
+  ##-- load guts
+  return $gn->loadXml(glob("$dir/*.xml"));
+}
+
 
 ## $gn = CLASS_OR_OBJECT->loadXml(@xml_filenames_or_handles)
 ##  + loaded data appended to existing relations, no implicit clear()

@@ -24,6 +24,7 @@ our %defaults =
   (
    'q'=>'GNROOT',
    'f'=>'html',
+   'case' => 1,
   );
 
 ##==============================================================================
@@ -123,6 +124,7 @@ if (param()) {
 $vars->{q} //= (grep {$_} @$vars{qw(lemma l term t word w)})[0];
 $vars->{s} //= (grep {$_} @$vars{qw(synset syn s)})[0];
 $vars->{f} //= (grep {$_} @$vars{qw(format fmt f mode m)})[0];
+$vars->{case} //= (grep {$_} @$vars{qw(case cs)})[0];
 showq('init', $vars->{q}//'');
 
 charset($charset); ##-- initialize charset AFTER calling Vars(), otherwise fallback utf8::upgrade() won't work
@@ -180,8 +182,18 @@ eval {
   $fmt    = $fmtxlate{$fmt} if (exists($fmtxlate{$fmt}));
 
   ##-- basic properties
-  my $syns   = $vars->{s} ? [split(' ',$vars->{s})] : $gn->get_synsets([split(' ',$vars->{q})]);
-  my $qtitle = $vars->{s} ? ('{'.join(', ', @{$gn->auniq($gn->synset_terms($syns))}).'}') : $vars->{q};
+  my ($syns,$qtitle);
+  if ($vars->{s}) {
+    ##-- basic properties: synset query
+    $syns   = [split(' ',$vars->{s})];
+    $qtitle = '{'.join(', ', @{$gn->auniq($gn->synset_terms($syns))}).'}';
+  } else {
+    ##-- basic properties: lemma query
+    my @terms = split(' ',$vars->{q});
+    @terms    = $gn->luniq(map {($_,lc($_),ucfirst(lc($_)))} @terms) if (!$vars->{case});
+    $syns     = $gn->get_synsets(\@terms);
+    $qtitle   = $vars->{q};
+  }
   #print STDERR "syns = {", join(' ',@{$syns||[]}), "}\n";
   die("$prog: no synset(s) found for query \`$qtitle'") if (!$syns || !@$syns);
 
