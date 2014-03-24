@@ -159,7 +159,7 @@ sub load {
   my ($gn,$file) = @_;
   $gn = $gn->new() if (!ref($gn));
 
-  return $gn->loadXml(glob("$file/*.xml")) if (-d $file);
+  return $gn->loadXmlDir($file) if (-d $file);
   return $gn->loadBin($file) if ($file =~ /\.(?:bin|sto)$/i);
   return $gn->loadDB($file)  if ($file =~ /\.(?:b?)db$/i);
   return $gn->loadCDB($file)  if ($file =~ /\.cdb$/i);
@@ -174,6 +174,7 @@ sub load {
 ##  + loaded data appended to existing relations, no implicit clear()
 sub loadXmlDir {
   my ($gn,$dir) = @_;
+  $dir =~ s/\/+$//;
   $gn = $gn->new() if (!ref($gn));
 
   ##-- try to load db version
@@ -186,7 +187,9 @@ sub loadXmlDir {
   } elsif (basename($dir) =~ /[\.\-](\d[\d\.\-]*$)/) {
     $dbversion = $1;
   }
-  $gn->{rel}{dbversion} = $dbversion;
+  chomp($dbversion);
+  $gn->{rel}{"dbversion:"} = $dbversion;
+  $gn->vmsg($vl_progress, "loadXmlDir(): set dbversion = ", ($dbversion//'-undef-'));
 
   ##-- load guts
   return $gn->loadXml(glob("$dir/*.xml"));

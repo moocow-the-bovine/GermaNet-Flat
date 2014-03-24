@@ -197,6 +197,9 @@ eval {
   #print STDERR "syns = {", join(' ',@{$syns||[]}), "}\n";
   die("$prog: no synset(s) found for query \`$qtitle'") if (!$syns || !@$syns);
 
+  ##-- header keys
+  my %versionHeader = ('-X-germanet-version'=>($gn->dbversion()||'unknown'));
+
   if ($fmt eq 'json') {
     ##-- json format: just dump relations
     my $jdata = [];
@@ -217,7 +220,7 @@ eval {
 
     binmode *STDOUT, ':raw';
     print
-      (header(-type=>($fmt2type{json})),
+      (header(-type=>$fmt2type{json},%versionHeader),
        to_json($jdata, {utf8=>1, pretty=>1, canonical=>1}),
       );
 
@@ -266,7 +269,7 @@ eval {
       $cmapx =~ s/href=\"\?s=(\w+)\"/href="?s=$1" title="$1"/g;
     }
     print
-      (header(-type=>'text/html',-charset=>$charset,),
+      (header(-type=>'text/html',-charset=>$charset,%versionHeader),
        start_html("GermaNet Graph: $qtitle"),
        h1("GermaNet Graph: $qtitle"),
        "<img src=\"${prog}?fmt=${imgfmt}&s=".join('+',@{$syns||[]})."\" usemap=\"#gn\" />\n",
