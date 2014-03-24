@@ -185,7 +185,7 @@ eval {
   my ($syns,$qtitle);
   if ($vars->{s}) {
     ##-- basic properties: synset query
-    $syns   = [split(' ',$vars->{s})];
+    $syns   = [grep {exists($gn->{rel}{"syn2lex:$_"})} split(' ',$vars->{s})];
     $qtitle = '{'.join(', ', @{$gn->auniq($gn->synset_terms($syns))}).'}';
   } else {
     ##-- basic properties: lemma query
