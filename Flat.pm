@@ -183,7 +183,7 @@ sub loadXmlDir {
       or confess(__PACKAGE__ . "::loadXmlDir(): could not open $dir/VERSION: $!");
     $dbversion = <$fh>;
     close $fh;
-  } else if (basename($dir) =~ /[\.\-](\d[\d\.\-]*$)/) {
+  } elsif (basename($dir) =~ /[\.\-](\d[\d\.\-]*$)/) {
     $dbversion = $1;
   }
   $gn->{rel}{dbversion} = $dbversion;
