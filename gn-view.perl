@@ -188,10 +188,11 @@ eval {
     $syns   = [grep {exists($gn->{rel}{"syn2lex:$_"})} split(' ',$vars->{s})];
     $qtitle = '{'.join(', ', @{$gn->auniq($gn->synset_terms($syns))}).'}';
   } else {
-    ##-- basic properties: lemma query
+    ##-- basic properties: lemma or synset query
     my @terms = split(' ',$vars->{q});
     @terms    = $gn->luniq(map {($_,lc($_),ucfirst(lc($_)))} @terms) if (!$vars->{case});
-    $syns     = $gn->get_synsets(\@terms);
+    $syns     = $gn->get_synsets(\@terms) // [];
+    push(@$syns, grep {exists($gn->{rel}{"syn2lex:$_"})} @terms); ##-- allow synset names as 'lemma' queries
     $qtitle   = $vars->{q};
   }
   #print STDERR "syns = {", join(' ',@{$syns||[]}), "}\n";
