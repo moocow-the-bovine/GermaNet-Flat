@@ -173,7 +173,8 @@ eval {
   die "$prog: you must specify either a query term (q=TERM) or a synset (s=SYNSET)!"
     if (!$vars->{q} && !$vars->{s});
 
-  my $infile = dirname($0)."/GermaNet/gn.db";
+  my $dir0   = dirname($0);
+  my $infile = (grep {-r "$dir0/$_"} "gn.db", "GermaNet/gn.db")[0];
   $gn = GermaNet::Flat->load($infile)
     or die("$prog: failed to load '$infile': $!");
 
