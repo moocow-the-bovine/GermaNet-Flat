@@ -18,6 +18,7 @@ use open qw(:std :utf8);
 ## constants
 our $prog = basename($0);
 
+our $label   = "GermaNet"; ##-- top-level label
 our $charset = 'utf-8'; ##-- this is all we support for now
 
 our %defaults =
@@ -182,7 +183,7 @@ eval {
     if (!$vars->{q} && !$vars->{s});
 
   my $dir0   = dirname($0);
-  my $infile = (grep {-r "$dir0/$_"} map {($_,"$_.db")} map {($_,"GermaNet/$_")} ($vars->{db}))[0];
+  my $infile = (grep {-r "$dir0/$_"} map {($_,"$_.db")} map {($_,"${label}/$_")} ($vars->{db}))[0];
   die("$0: couldn't find input file for db=$vars->{db}") if (!$infile);
   $gn = GermaNet::Flat->load($infile)
     or die("$prog: failed to load '$infile': $!");
@@ -210,7 +211,7 @@ eval {
   $syns //= [];
 
   ##-- header keys
-  my %versionHeader = ('-X-germanet-version'=>($gn->dbversion()||'unknown'));
+  my %versionHeader = ("-X-germanet-version"=>($gn->dbversion()||'unknown'));
 
   if ($fmt eq 'json') {
     ##-- json format: just dump relations
@@ -282,8 +283,8 @@ eval {
     }
     print
       (header(-type=>'text/html',-charset=>$charset,%versionHeader),
-       start_html("GermaNet Graph: $qtitle"),
-       h1("GermaNet Graph: $qtitle"),
+       start_html("$label Graph: $qtitle"),
+       h1("$label Graph: $qtitle"),
        ($syns && @$syns
 	? ("<img src=\"${prog}?fmt=${imgfmt}&s=".join('+',@{$syns||[]})."\" usemap=\"#gn\" />\n",
 	   $cmapx,
