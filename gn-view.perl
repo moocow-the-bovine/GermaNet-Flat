@@ -182,7 +182,8 @@ eval {
     if (!$vars->{q} && !$vars->{s});
 
   my $dir0   = dirname($0);
-  my $infile = (grep {-r "$dir0/$_"} map {($_,"$_.db")} map {($_,"GermaNet/$_")} ($vars->{db},"gn"))[0];
+  my $infile = (grep {-r "$dir0/$_"} map {($_,"$_.db")} map {($_,"GermaNet/$_")} ($vars->{db}))[0];
+  die("$0: couldn't find input file for db=$vars->{db}") if (!$infile);
   $gn = GermaNet::Flat->load($infile)
     or die("$prog: failed to load '$infile': $!");
 
