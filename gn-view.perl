@@ -25,6 +25,7 @@ our %defaults =
    'q'=>'GNROOT',
    'f'=>'html',
    'case' => 1,
+   'db' => 'gn',
   );
 
 ##==============================================================================
@@ -124,6 +125,7 @@ if (param()) {
 $vars->{q} //= (grep {$_} @$vars{qw(lemma l term t word w)})[0];
 $vars->{s} //= (grep {$_} @$vars{qw(synset syn s)})[0];
 $vars->{f} //= (grep {$_} @$vars{qw(format fmt f mode m)})[0];
+$vars->{db} //= (grep {$_} @$vars{qw(database base db)})[0];
 $vars->{case} //= (grep {$_} @$vars{qw(case_sensitive sensitive sens case cs)})[0];
 showq('init', $vars->{q}//'');
 
@@ -174,7 +176,7 @@ eval {
     if (!$vars->{q} && !$vars->{s});
 
   my $dir0   = dirname($0);
-  my $infile = (grep {-r "$dir0/$_"} "gn.db", "GermaNet/gn.db")[0];
+  my $infile = (grep {-r "$dir0/$_"} map {($_,"$_.db")} map {($_,"GermaNet/$_")} ($vars->{db},"gn"))[0];
   $gn = GermaNet::Flat->load($infile)
     or die("$prog: failed to load '$infile': $!");
 
