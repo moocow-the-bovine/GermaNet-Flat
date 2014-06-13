@@ -61,7 +61,8 @@ sub ensure_node {
 sub ensure_edge {
   my ($from,$to,%opts) = @_;
   if (exists $edges{"$from $to"}) {
-    print STDERR "edge exists: $from $to\n";
+    #print STDERR "edge exists: $from $to\n";
+    return;
   }
   $edges{"$from $to"} = "$from $to";
   $gv->add_edge($from,$to,%opts);
@@ -253,7 +254,9 @@ eval {
 
   foreach my $syn (@$syns) {
     ensure_node($syn, fillcolor=>'yellow',fontname=>'arial bold',shape=>'circle');
+  }
 
+  foreach my $syn (@$syns) {
     foreach my $sup (@{$gn->hyperonyms($syn)}) {
       ensure_node($sup, fillcolor=>'magenta');
       ensure_edge($sup, $syn);
