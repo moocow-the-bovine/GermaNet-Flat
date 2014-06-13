@@ -28,6 +28,12 @@ our %defaults =
    'db' => 'gn',
   );
 
+##-- local overrides
+if (-r "$0.rc") {
+  do "$0.rc";
+  die("$0: error reading rc file $0.rc: $@") if ($@);
+}
+
 ##==============================================================================
 ## utils
 
