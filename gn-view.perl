@@ -177,6 +177,8 @@ my %fmt2type = ('png'=>'image/png',
 		'cmapx'=>'text/plain',
 		'imap'=>'text/html',
 		'svg'=>'image/svg+xml',
+                'eps'=>'application/postscript',
+                'ps'=>'application/postscript',
 		'json'=>'application/json',
 	       );
 eval {
