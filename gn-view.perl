@@ -18,8 +18,10 @@ use open qw(:std :utf8);
 ## constants
 our $prog = basename($0);
 
-our $label   = "GermaNet"; ##-- top-level label
-our $charset = 'utf-8'; ##-- this is all we support for now
+our $label     = "GermaNet"; ##-- top-level label
+our $charset   = 'utf-8';    ##-- this is all we support for now
+our $max_depth = 2;          ##-- maximum 'depth' parameter (0:none)
+our $vars = {};
 
 our %defaults =
   (
@@ -27,6 +29,7 @@ our %defaults =
    'f'=>'html',
    'case' => 1,
    'db' => 'gn',
+   'depth' => 1, ##-- TODO
   );
 
 ##-- local overrides
@@ -43,35 +46,76 @@ BEGIN {
 }
 
 my ($gn);
+sub syn_id {
+  return ref($_[0]) ? $_[0]{synset} : $_[0];
+}
 sub syn_label {
   my $syn = shift;
-  return join("\\n", @{$gn->lex2orth($gn->syn2lex($syn))});
+  return join("\\n", @{ref($syn) ? $syn->{orth} : @{$gn->lex2orth($gn->syn2lex($syn))}});
 }
 
 my (%nodes,%edges,$gv);
 sub ensure_node {
   my ($syn,%opts) = @_;
-  $gv->add_node(($nodes{$syn}=$syn),
+  my $synid = syn_id($syn);
+  $gv->add_node(($nodes{$synid}=$synid),
 		label=>syn_label($syn),
-		URL=>"?s=$syn",
+		URL=>"?s=$synid",
 		%opts,
-	       ) if (!exists $nodes{$syn});
+	       ) if (!exists $nodes{$synid});
 }
 
 sub ensure_edge {
   my ($from,$to,%opts) = @_;
-  if (exists $edges{"$from $to"}) {
-    #print STDERR "edge exists: $from $to\n";
+  my $fromid = syn_id($from);
+  my $toid   = syn_id($to);
+  if (exists $edges{"$fromid $toid"}) {
+    #print STDERR "edge exists: $fromid $toid\n";
     return;
   }
-  $edges{"$from $to"} = "$from $to";
-  $gv->add_edge($from,$to,%opts);
+  $edges{"$fromid $toid"} = "$fromid $toid";
+  $gv->add_edge($fromid,$toid,%opts);
   return;
 }
 
-sub synset_json {
-  my $syn = shift;
-  return {synset=>$syn, orth=>[map {s/_/ /g; $_} @{$gn->lex2orth($gn->syn2lex($syn))}]};
+sub ensure_tree {
+  my ($syn,$subdepth,$supdepth, $opts,$subopts,$supopts) = @_;
+  ensure_node($syn, %{$opts//{}});
+  if (($subdepth//0) > 0) {
+    foreach my $sub (@{$syn->{hyponyms}//[]}) {
+      ensure_tree($sub, $subdepth-1,0, $subopts,$subopts,undef);
+      ensure_edge($syn, $sub);
+    }
+  }
+  if (($supdepth//0) > 0) {
+    foreach my $sup (@{$syn->{hyperonyms}//[]}) {
+      ensure_tree($sup, 0,$supdepth-1, $supopts,undef,$supopts);
+      ensure_edge($sup, $syn);
+    }
+  }
+}
+
+
+## \%info = synset_info($synsetId, $subdepth=0, $supdepth=0)
+##  + returned hash is of the form {synset=>$synsetId, orth=>\@orths, ...}
+##  + if $subdepth is greater than zero, hash also has hyponyms=>\@subs
+##  + if $supdepth is greater than zero, hash also has hyperonyms=>\@supers
+sub synset_info {
+  my ($syn,$subdepth,$supdepth) = @_;
+  my $info = {synset=>$syn, orth=>[map {s/_/ /g; $_} @{$gn->lex2orth($gn->syn2lex($syn))}]};
+  if (($subdepth//0) > 0) {
+    $info->{hyponyms}=[];
+    foreach my $sub (@{$gn->hyponyms($syn)}) {
+      push(@{$info->{hyponyms}}, synset_info($sub,$subdepth-1,0));
+    }
+  }
+  if (($supdepth//0) > 0) {
+    $info->{hyperonyms}=[];
+    foreach my $sup (@{$gn->hyperonyms($syn)}) {
+      push(@{$info->{hyperonyms}}, synset_info($sup,0,$supdepth-1));
+    }
+  }
+  return $info;
 }
 
 ## $tmpdata = gvdump($gv,$fmt)
@@ -124,7 +168,6 @@ sub showq {
 }
 
 ##-- get params
-my $vars = {};
 if (param()) {
   $vars = { Vars() }; ##-- copy tied Vars()-hash, otherwise utf8 flag gets handled wrong!
 }
@@ -135,6 +178,7 @@ $vars->{s} //= (grep {$_} @$vars{qw(synset syn s)})[0];
 $vars->{f} //= (grep {$_} @$vars{qw(format fmt f mode m)})[0];
 $vars->{db} //= (grep {$_} @$vars{qw(database base db)})[0];
 $vars->{case} //= (grep {$_} @$vars{qw(case_sensitive sensitive sens case cs)})[0];
+$vars->{depth} //= (grep {$_} @$vars{qw(depth d)})[0];
 showq('init', $vars->{q}//'');
 
 charset($charset); ##-- initialize charset AFTER calling Vars(), otherwise fallback utf8::upgrade() won't work
@@ -142,6 +186,7 @@ charset($charset); ##-- initialize charset AFTER calling Vars(), otherwise fallb
 ##-- instantiate defaults
 #use Data::Dumper; print STDERR Data::Dumper->Dump([\%defaults,$vars],['defaults','vars']);
 $vars->{$_} = $defaults{$_} foreach (grep {!defined($vars->{$_})} keys %defaults);
+$vars->{depth} = $max_depth if (($max_depth//0) > 0 && ($vars->{depth}//0) > $max_depth);
 showq('default', $vars->{q});
 
 ##-- sanitize vars
@@ -216,28 +261,14 @@ eval {
   ##-- header keys
   my %versionHeader = ("-X-germanet-version"=>($gn->dbversion()||'unknown'));
 
+  my $info = [map {synset_info($_,$vars->{depth},$vars->{depth})} @$syns];
   if ($fmt eq 'json') {
-    ##-- json format: just dump relations
-    my $jdata = [];
-    my ($jsyn);
-
-    foreach my $syn (@$syns) {
-      push(@$jdata, $jsyn=synset_json($syn));
-      $jsyn->{hyperonyms}=[];
-      $jsyn->{hyponyms}=[];
-
-      foreach my $sup (@{$gn->hyperonyms($syn)}) {
-	push(@{$jsyn->{hyperonyms}}, synset_json($sup));
-      }
-      foreach my $sub (@{$gn->hyponyms($syn)}) {
-	push(@{$jsyn->{hyponyms}}, synset_json($sub));
-      }
-    }
+    ##-- json format: just dump info
 
     binmode *STDOUT, ':raw';
     print
       (header(-type=>$fmt2type{json},%versionHeader),
-       to_json($jdata, {utf8=>1, pretty=>1, canonical=>1}),
+       to_json($info, {utf8=>1, pretty=>1, canonical=>1}),
       );
 
     exit 0;
@@ -254,19 +285,11 @@ eval {
 		      edge=>{dir=>'back'},
 		     );
 
-  foreach my $syn (@$syns) {
+  foreach my $syn (@$info) {
     ensure_node($syn, fillcolor=>'yellow',fontname=>'arial bold',shape=>'circle');
   }
-
-  foreach my $syn (@$syns) {
-    foreach my $sup (@{$gn->hyperonyms($syn)}) {
-      ensure_node($sup, fillcolor=>'magenta');
-      ensure_edge($sup, $syn);
-    }
-    foreach my $sub (@{$gn->hyponyms($syn)}) {
-      ensure_node($sub, fillcolor=>'cyan');
-      ensure_edge($syn, $sub);
-    }
+  foreach my $syn (@$info) {
+    ensure_tree($syn,$vars->{depth},$vars->{depth}, {},{fillcolor=>'cyan'},{fillcolor=>'magenta'});
   }
 
   ##-- dump
@@ -284,14 +307,14 @@ eval {
     if (1) {
       ##-- trim/rename titles
       $cmapx =~ s/\s(?:title|alt)=\"[^\"]*\"//sg;
-      $cmapx =~ s/href=\"\?s=(\w+)\"/href="?s=$1" title="$1"/g;
+      $cmapx =~ s/href=\"\?s=(\w+)\"/href="?s=$1&depth=$vars->{depth}" title="$1"/g;
     }
     print
       (header(-type=>'text/html',-charset=>$charset,%versionHeader),
        start_html("$label Graph: $qtitle"),
        h1("$label Graph: $qtitle"),
        ($syns && @$syns
-	? ("<img src=\"${prog}?fmt=${imgfmt}&s=".join('+',@{$syns||[]})."\" usemap=\"#gn\" />\n",
+	? ("<img src=\"${prog}?fmt=${imgfmt}&s=".join('+',@{$syns||[]})."&depth=$vars->{depth}\" usemap=\"#gn\" />\n",
 	   $cmapx,
 	  )
 	: ("no synset(s) found!")
