@@ -51,7 +51,7 @@ sub syn_id {
 }
 sub syn_label {
   my $syn = shift;
-  return join("\\n", @{ref($syn) ? $syn->{orth} : @{$gn->lex2orth($gn->syn2lex($syn))}});
+  return join("\\n", @{ref($syn) ? $syn->{orth} : $gn->lex2orth($gn->syn2lex($syn))});
 }
 
 my (%nodes,%edges,$gv);
