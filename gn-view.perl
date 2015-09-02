@@ -207,6 +207,7 @@ foreach (keys %$vars) {
 }
 
 showq('sanitized', $vars->{q});
+our $depth = $vars->{depth};
 
 ##==============================================================================
 ## MAIN
@@ -261,7 +262,7 @@ eval {
   ##-- header keys
   my %versionHeader = ("-X-germanet-version"=>($gn->dbversion()||'unknown'));
 
-  my $info = [map {synset_info($_,$vars->{depth},$vars->{depth})} @$syns];
+  my $info = [map {synset_info($_,$depth,$depth)} @$syns];
   if ($fmt eq 'json') {
     ##-- json format: just dump info
 
@@ -289,7 +290,7 @@ eval {
     ensure_node($syn, fillcolor=>'yellow',fontname=>'arial bold',shape=>'circle');
   }
   foreach my $syn (@$info) {
-    ensure_tree($syn,$vars->{depth},$vars->{depth}, {},{fillcolor=>'cyan'},{fillcolor=>'magenta'});
+    ensure_tree($syn,$depth,$depth, {},{fillcolor=>'cyan'},{fillcolor=>'magenta'});
   }
 
   ##-- dump
@@ -304,17 +305,18 @@ eval {
     #$imgfmt = 'svg';
     $imgfmt = 'png';
     my $cmapx = gvdump($gv,'cmapx');
+    my $deptharg = ($depth > 1) ? "&d=$depth" : '';
     if (1) {
       ##-- trim/rename titles
       $cmapx =~ s/\s(?:title|alt)=\"[^\"]*\"//sg;
-      $cmapx =~ s/href=\"\?s=(\w+)\"/href="?s=$1&depth=$vars->{depth}" title="$1"/g;
+      $cmapx =~ s/href=\"\?s=(\w+)\"/href="?s=$1$deptharg" title="$1"/g;
     }
     print
       (header(-type=>'text/html',-charset=>$charset,%versionHeader),
        start_html("$label Graph: $qtitle"),
        h1("$label Graph: $qtitle"),
        ($syns && @$syns
-	? ("<img src=\"${prog}?fmt=${imgfmt}&s=".join('+',@{$syns||[]})."&depth=$vars->{depth}\" usemap=\"#gn\" />\n",
+	? ("<img src=\"${prog}?fmt=${imgfmt}&s=".join('+',@{$syns||[]})."$deptharg\" usemap=\"#gn\" />\n",
 	   $cmapx,
 	  )
 	: ("no synset(s) found!")
