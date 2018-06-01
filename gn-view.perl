@@ -323,7 +323,7 @@ eval {
 	: ("no synset(s) found!")
        ),
        ##-- ugly hack
-       q{<a style="display:block; text-align:center; color:#666666;" href="/dstar/privacy">Privacy Policy</a>},
+       q{<hr/><a style="display:block; text-align:center; color:#666666;" href="/dstar/privacy">Privacy Policy</a>},
        end_html,
       );
   }
