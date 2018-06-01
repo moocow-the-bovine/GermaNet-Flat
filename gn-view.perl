@@ -234,6 +234,7 @@ eval {
   my $dir0   = dirname($0);
   my $infile = (grep {-r $_} map {($_,"$_.db","$dir0/$_","$dir0/$_.db")} map {($_,"${label}/$_")} ($vars->{db}))[0];
   die("$0: couldn't find input file for db=$vars->{db}") if (!$infile);
+  #print STDERR "$0: using database '$infile'\n";
   $gn = GermaNet::Flat->load($infile)
     or die("$prog: failed to load '$infile': $!");
 
@@ -321,6 +322,8 @@ eval {
 	  )
 	: ("no synset(s) found!")
        ),
+       ##-- ugly hack
+       q{<a style="display:block; text-align:center; color:#666666;" href="/dstar/privacy">Privacy Policy</a>},
        end_html,
       );
   }
