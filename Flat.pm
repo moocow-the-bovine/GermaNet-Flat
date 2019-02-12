@@ -7,11 +7,12 @@ use Fcntl;
 use File::Basename qw(basename dirname);
 use Carp;
 use strict;
+use 5.010; ##-- v5.10.0: for // operator
 
 ##==============================================================================
 ## Constants
 
-our $VERSION = 0.02;
+our $VERSION = 0.03;
 
 ##-- constants: verbosity levels
 our $vl_silent   = 0;
